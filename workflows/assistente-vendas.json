@@ -1,0 +1,569 @@
+{
+  "name": "Assistente de Vendas (Telegram + Gemini + Sheets + Memoria)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -820,
+        300
+      ],
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Telegram Trigger",
+      "webhookId": "b1000000-0000-4000-8000-000000000001"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cond-texto",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cond-audio",
+                    "leftValue": "={{ $json.message.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -600,
+        300
+      ],
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Texto ou Audio?"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -380,
+        460
+      ],
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Baixar Audio",
+      "webhookId": "b1000000-0000-4000-8000-000000000003"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "Transcreva este audio para texto em portugues do Brasil. Responda APENAS com a transcricao literal do que foi falado, sem comentarios, sem aspas e sem nenhum texto adicional.",
+        "inputType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        460
+      ],
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Transcrever Audio"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-1",
+              "name": "mensagem",
+              "value": "={{ $json.message?.text || $json.content?.parts?.[0]?.text }}",
+              "type": "string"
+            },
+            {
+              "id": "set-2",
+              "name": "sessionId",
+              "value": "={{ String($('Telegram Trigger').item.json.message.chat.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "set-3",
+              "name": "nome",
+              "value": "={{ $('Telegram Trigger').item.json.message.from.first_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        300
+      ],
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Preparar Mensagem"
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "={{ $json.mensagem }}",
+        "options": {
+          "systemMessage": "=# QUEM VOCÊ É\n\nVocê é a Bia, consultora de vendas da CleanMax Produtos de Limpeza.\nVocê atende clientes pelo Telegram. Você é humana no jeito de falar: simpática, objetiva e prestativa. Você NUNCA diz que é uma inteligência artificial, um bot ou um assistente virtual. Se perguntarem, diga apenas que é da equipe de vendas da CleanMax.\n\nO nome do cliente no Telegram é: {{ $json.nome }}\n\n# SUAS FERRAMENTAS\n\n1. consultar_catalogo — devolve a lista COMPLETA de produtos com nome, categoria, descrição, indicações, modo de uso, rendimento, tamanho, preço e estoque.\n2. registrar_pedido — grava o pedido fechado na planilha de pedidos.\n\n# REGRAS INEGOCIÁVEIS\n\n1. NUNCA invente produto, preço, promoção, prazo ou característica. Toda informação sobre produto vem da ferramenta consultar_catalogo.\n2. SEMPRE use consultar_catalogo antes de citar qualquer preço ou produto.\n3. Se o cliente pedir algo que não existe no catálogo, diga com honestidade que não trabalha com aquele item e ofereça a alternativa mais próxima que existe.\n4. Se um produto estiver com estoque 0, não ofereça. Sugira um substituto.\n5. Só use registrar_pedido depois que o cliente CONFIRMAR explicitamente o pedido e você já tiver o nome e o telefone dele.\n6. Nunca peça dados de cartão, senha, CPF ou qualquer dado sensível. O pagamento é combinado depois, pela equipe.\n\n# COMO VOCÊ CONDUZ A VENDA\n\nSiga este roteiro, mas de forma natural — é uma conversa, não um formulário.\n\nETAPA 1 — ACOLHER\nCumprimente pelo nome, se apresente em uma linha e faça UMA pergunta aberta para entender o que a pessoa precisa.\nExemplo: \"Oi, João! Aqui é a Bia, da CleanMax 😊 Me conta: você tá procurando produto pra casa ou pro seu negócio?\"\n\nETAPA 2 — DESCOBRIR\nAntes de oferecer, entenda o cenário. Pergunte uma coisa de cada vez:\n- Para casa ou para empresa/comércio?\n- Qual o problema principal? (gordura, mofo, piso, roupa, cheiro...)\n- Que tipo de superfície ou ambiente?\n- Já usa algum produto hoje? O que não funcionou bem?\nNunca dispare mais de 2 perguntas na mesma mensagem.\n\nETAPA 3 — RECOMENDAR\nConsulte o catálogo e recomende de 1 a 3 produtos, no máximo.\nPara cada um, apresente nesta ordem:\n- O nome do produto\n- O BENEFÍCIO para o problema específico que o cliente contou (não a ficha técnica)\n- O preço e o tamanho\nSempre conecte o produto à dor que a pessoa relatou.\nExemplo: \"Pro seu caso da coifa, o Desengordurante Cozinha Pesada resolve — ele dissolve a gordura queimada em 1 minuto, sem você precisar esfregar. Sai R$ 14,90 o 500ml.\"\n\nETAPA 4 — AMPLIAR O TICKET (com bom senso)\nDepois que o cliente demonstrar interesse, ofereça UMA sugestão complementar que faça sentido de verdade. Nunca empurre.\n- Comprou limpa vidros → sugira o pano de microfibra\n- Vai levar 3 ou mais itens → mostre o Kit Limpeza Completo Casa e compare o preço\n- É empresa/condomínio → mostre o Kit Limpeza Profissional\nSe o cliente disser não, aceite na hora e siga em frente.\n\nETAPA 5 — TRATAR OBJEÇÕES\nNunca discuta e nunca minimize o que o cliente sente. Use este caminho: acolha → mostre valor → devolva a decisão.\n- \"Tá caro\": compare o rendimento. Mostre o custo por uso. \"Entendo! Mas repara: esse rende umas 60 aplicações, dá menos de 25 centavos cada limpeza. Faz sentido pra você?\"\n- \"Vou pensar\": pergunte com leveza o que ficou em dúvida.\n- \"Já uso outra marca\": pergunte o que ela não resolve e ataque exatamente isso.\n- \"É bom mesmo?\": use as indicações e o rendimento que estão no catálogo.\n\nETAPA 6 — FECHAR\nQuando perceber interesse, feche com uma pergunta de escolha, nunca com \"sim ou não\".\n\"Fecho o kit completo ou prefere levar só os dois primeiros?\"\n\nAntes de registrar, faça o RESUMO e peça a confirmação:\n\"Deixa eu confirmar então:\n• 1x Desengordurante Cozinha Pesada 500ml — R$ 14,90\n• 1x Pano de Microfibra (3 un) — R$ 24,90\nTotal: R$ 39,80\n\nTá certo assim? Se sim, me passa seu nome completo e um telefone pra gente combinar a entrega 😊\"\n\nETAPA 7 — REGISTRAR\nSó depois do \"sim\" e com nome e telefone em mãos, chame registrar_pedido.\nDepois confirme para o cliente que está tudo certo e diga que a equipe entra em contato para combinar entrega e pagamento.\n\n# COMO VOCÊ ESCREVE\n\n- Mensagens CURTAS. Máximo 4 linhas por mensagem. É Telegram, não e-mail.\n- Português do Brasil, informal mas profissional.\n- No máximo 1 ou 2 emojis por mensagem. Nunca em toda frase.\n- Use listas com • quando for citar mais de um produto.\n- Preços sempre no formato R$ 14,90.\n- Termine quase sempre com uma pergunta, para manter a conversa viva.\n- Nunca escreva em markdown pesado (nada de ## ou **), o Telegram não renderiza bem. Texto simples.\n\n# MEMÓRIA\n\nVocê lembra de tudo que já foi conversado com este cliente.\nNunca peça de novo uma informação que ele já te deu.\nSe ele voltar depois de um tempo, retome de onde parou.",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        360,
+        300
+      ],
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Agente de Vendas"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        200,
+        560
+      ],
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "Gemini 2.5 Flash"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        360,
+        560
+      ],
+      "id": "a1000000-0000-4000-8000-000000000008",
+      "name": "Memoria da Conversa"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Consulta o catalogo COMPLETO de produtos de limpeza da CleanMax. Retorna todas as linhas com: SKU, Produto, Categoria, Descricao, Indicacoes, Modo_de_Uso, Rendimento, Tamanho, Preco e Estoque. Use SEMPRE esta ferramenta antes de citar qualquer produto, preco ou caracteristica para o cliente.",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "COLE_AQUI_O_ID_DA_SUA_PLANILHA",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Produtos",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        520,
+        560
+      ],
+      "id": "a1000000-0000-4000-8000-000000000009",
+      "name": "consultar_catalogo"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Registra um pedido FECHADO na planilha de pedidos. Use APENAS depois que o cliente confirmar o pedido explicitamente e voce ja tiver o nome completo e o telefone dele. Nunca use antes da confirmacao.",
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "COLE_AQUI_O_ID_DA_SUA_PLANILHA",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pedidos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "Cliente": "={{ $fromAI('cliente', 'Nome completo do cliente', 'string') }}",
+            "Contato": "={{ $fromAI('contato', 'Telefone ou WhatsApp do cliente', 'string') }}",
+            "Produtos": "={{ $fromAI('produtos', 'Lista dos produtos com quantidade e preco unitario. Exemplo: 2x Detergente Neutro 500ml (R$ 8,90); 1x Pano Microfibra (R$ 24,90)', 'string') }}",
+            "Valor_Total": "={{ $fromAI('valor_total', 'Valor total do pedido, apenas o numero. Exemplo: 42.70', 'number') }}",
+            "Forma_Pagamento": "={{ $fromAI('forma_pagamento', 'Forma de pagamento combinada: pix, dinheiro, cartao ou a combinar', 'string') }}",
+            "Observacoes": "={{ $fromAI('observacoes', 'Observacoes do pedido, como endereco de entrega ou preferencia de horario. Se nao houver, escreva sem observacoes', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Contato",
+              "displayName": "Contato",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Produtos",
+              "displayName": "Produtos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor_Total",
+              "displayName": "Valor_Total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Forma_Pagamento",
+              "displayName": "Forma_Pagamento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Observacoes",
+              "displayName": "Observacoes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        560
+      ],
+      "id": "a1000000-0000-4000-8000-000000000010",
+      "name": "registrar_pedido"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "a1000000-0000-4000-8000-000000000011",
+      "name": "Responder no Telegram",
+      "webhookId": "b1000000-0000-4000-8000-000000000011"
+    },
+    {
+      "parameters": {
+        "content": "## 1. ENTRADA 📥\n\nO **Telegram Trigger** recebe tudo que o cliente manda.\n\nO **Switch** separa:\n- saída 1 → mensagem de texto\n- saída 2 → áudio\n\nSe for áudio, baixamos o arquivo e o Gemini transcreve para texto.\n\n➡️ No fim, os dois caminhos viram **texto**.",
+        "height": 220,
+        "width": 560,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        60
+      ],
+      "id": "s1",
+      "name": "Nota 1"
+    },
+    {
+      "parameters": {
+        "content": "## 2. PADRONIZAR 🧹\n\nO nó **Preparar Mensagem** deixa tudo no mesmo formato, venha de onde vier:\n\n- `mensagem` → o que o cliente disse\n- `sessionId` → o ID do chat (é a **chave da memória**!)\n- `nome` → primeiro nome do cliente",
+        "height": 220,
+        "width": 280,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        40,
+        60
+      ],
+      "id": "s2",
+      "name": "Nota 2"
+    },
+    {
+      "parameters": {
+        "content": "## 3. O AGENTE 🧠\n\nAqui mora a inteligência. O agente tem **4 peças** ligadas embaixo dele:\n\n🔹 **Gemini 2.5 Flash** — o cérebro que pensa e escreve\n🔹 **Memória** — lembra da conversa (separada por cliente, via `sessionId`)\n🔹 **consultar_catalogo** — lê os produtos na planilha\n🔹 **registrar_pedido** — grava o pedido fechado\n\n⚠️ O **System Message** (clique no nó) é onde está a técnica de vendas.",
+        "height": 220,
+        "width": 400,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        190,
+        60
+      ],
+      "id": "s3",
+      "name": "Nota 3"
+    },
+    {
+      "parameters": {
+        "content": "## 4. RESPOSTA 💬\n\nO agente devolve o texto no campo `output`, e o nó do Telegram envia de volta pro cliente.",
+        "height": 220,
+        "width": 260,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        60
+      ],
+      "id": "s4",
+      "name": "Nota 4"
+    },
+    {
+      "parameters": {
+        "content": "## ⚙️ ANTES DE RODAR\n\n**1.** Em cada nó com 🔴, escolha sua credencial.\n\n**2.** Nos dois nós de planilha, troque\n`COLE_AQUI_O_ID_DA_SUA_PLANILHA`\npelo ID da sua planilha do Google.\n\n**3.** A planilha precisa ter 2 abas com estes nomes exatos:\n`Produtos` e `Pedidos`\n\n**4.** Ative o fluxo no botão lá em cima ↗️",
+        "height": 260,
+        "width": 380,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        700
+      ],
+      "id": "s5",
+      "name": "Nota 5"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Texto ou Audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto ou Audio?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baixar Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcrever Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcrever Audio": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensagem": {
+      "main": [
+        [
+          {
+            "node": "Agente de Vendas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Vendas": {
+      "main": [
+        [
+          {
+            "node": "Responder no Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 2.5 Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Vendas",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memoria da Conversa": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente de Vendas",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_catalogo": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Vendas",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_pedido": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Vendas",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -1,0 +1,68 @@
+services:
+  # ---------------------------------------------------------------------------
+  # n8n  →  o cérebro da automação (onde o fluxo do agente vai rodar)
+  # Acesse depois em: http://localhost:5678
+  # ---------------------------------------------------------------------------
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n_vendas
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # O n8n usa essas variáveis para montar a URL pública dos webhooks.
+      # É por essa URL que o Telegram vai conseguir "falar" com o nosso n8n.
+      - WEBHOOK_URL=https://${NGROK_DOMAIN}
+      - N8N_HOST=${NGROK_DOMAIN}
+      - N8N_PROTOCOL=https
+      # Fuso horário (importante para a data dos pedidos ficar correta)
+      - GENERIC_TIMEZONE=America/Fortaleza
+      - TZ=America/Fortaleza
+      # Interface em português
+      - N8N_DEFAULT_LOCALE=pt-BR
+      # Remove o aviso de "task runners" nas versões novas do n8n
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      # Guarda os fluxos e credenciais mesmo se o container for recriado
+      - n8n_data:/home/node/.n8n
+
+  # ---------------------------------------------------------------------------
+  # ngrok →  cria um "túnel" da internet até a sua máquina.
+  # Sem ele o Telegram não consegue entregar as mensagens no n8n local.
+  # ---------------------------------------------------------------------------
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok_vendas
+    restart: unless-stopped
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    # Expõe a porta 5678 do container "n8n_vendas" no domínio fixo do ngrok
+    command: http --domain=${NGROK_DOMAIN} n8n_vendas:5678
+    depends_on:
+      - n8n
+
+  # ---------------------------------------------------------------------------
+  # postgres → OPCIONAL. Só é usado se você quiser memória PERSISTENTE
+  # (a conversa sobrevive a reinicializações do n8n).
+  #
+  # Na aula começamos SEM ele (memória simples, na RAM).
+  # Para ligar:  docker compose --profile persistente up -d
+  # Detalhes em: docs/09-memoria-persistente.md
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_vendas
+    restart: unless-stopped
+    profiles: ["persistente"]
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  n8n_data:
+  postgres_data:
