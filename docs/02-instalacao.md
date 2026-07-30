@@ -6,6 +6,9 @@
 
 ## Antes de começar
 
+> 📦 Ainda não baixou os arquivos do projeto? Comece pelo
+> **[doc 00 — Como baixar](00-como-baixar.md)**. Não precisa de conta no GitHub.
+
 Instale o **Docker Desktop**: https://www.docker.com/products/docker-desktop/
 
 Abra o app e espere o ícone da baleia 🐳 ficar verde/estável. Depois confirme

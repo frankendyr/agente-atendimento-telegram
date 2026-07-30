@@ -38,6 +38,7 @@ E o pedido cai automaticamente na sua planilha do Google. 📊
 
 | # | Etapa | Tempo |
 |---|-------|-------|
+| [00](docs/00-como-baixar.md) | 📦 **Como baixar os arquivos** (sem precisar de conta no GitHub) | 3 min |
 | [01](docs/01-arquitetura.md) | 🏗️ Entendendo a arquitetura | 10 min |
 | [02](docs/02-instalacao.md) | 🐳 Subindo o n8n com Docker + ngrok | 15 min |
 | [03](docs/03-telegram.md) | 🤖 Criando o bot no Telegram | 5 min |
@@ -95,34 +96,55 @@ E o pedido cai automaticamente na sua planilha do Google. 📊
 > Se você é da aula e quer só rodar, siga aqui. Se quer **entender**,
 > comece pelo [docs/01](docs/01-arquitetura.md).
 
-### 1. Clone e configure
+### 1. Baixe os arquivos
+
+> 💡 **Você não precisa de conta no GitHub para baixar.** O repositório é
+> público — qualquer pessoa baixa, sem login.
+
+**Sem git (mais simples):** clique no botão verde **`< > Code`** aqui em cima
+→ **Download ZIP** → extraia a pasta.
+
+**Com git:**
 
 ```bash
-git clone <url-deste-repositorio>
+git clone https://github.com/frankendyr/agente-atendimento-telegram.git
 ```
 
+📖 Passo a passo detalhado, com as três formas de baixar (inclusive **sem baixar
+nada**): **[docs/00-como-baixar.md](docs/00-como-baixar.md)**
+
+### 2. Configure
+
+Abra o terminal **dentro da pasta do projeto** e rode:
+
 ```bash
-cd assistente-vendas-n8n && cp .env.example .env
+cp .env.example .env
+```
+
+No Windows (Prompt de Comando), use:
+
+```bash
+copy .env.example .env
 ```
 
 Abra o `.env` e preencha com seu token e domínio do ngrok.
 
-### 2. Suba o ambiente
+### 3. Suba o ambiente
 
 ```bash
 docker compose up -d
 ```
 
-### 3. Acesse o n8n
+### 4. Acesse o n8n
 
 Abra **http://localhost:5678** e crie sua conta local.
 
-### 4. Configure
+### 5. Conecte as contas
 
 Siga os docs [03](docs/03-telegram.md) → [04](docs/04-google-sheets.md) →
 [05](docs/05-gemini.md) → [06](docs/06-importar-fluxo.md).
 
-### 5. Teste
+### 6. Teste
 
 Mande "oi" para o seu bot no Telegram. 🎉
 
@@ -146,7 +168,7 @@ assistente-vendas-n8n/
 ├── prompts/
 │   └── system-prompt-vendedor.md  ← a técnica de vendas do agente
 │
-└── docs/                       ← o passo a passo completo (01 a 10)
+└── docs/                       ← o passo a passo completo (00 a 10)
 ```
 
 ---
@@ -160,6 +182,9 @@ assistente-vendas-n8n/
 | Conta no Telegram | App do Telegram | Grátis |
 | Chave da API do Gemini | [aistudio.google.com](https://aistudio.google.com/apikey) | Grátis (com limites) |
 | Conta Google (Sheets) | [sheets.google.com](https://sheets.google.com) | Grátis |
+
+> ✅ **Conta no GitHub NÃO está na lista.** Ela só é necessária se você quiser
+> publicar o *seu* projeto depois. Para baixar este aqui, não precisa.
 
 ---
 

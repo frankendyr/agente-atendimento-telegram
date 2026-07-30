@@ -1,6 +1,6 @@
 # 01 — 🏗️ Entendendo a arquitetura
 
-[⬅️ Voltar ao índice](../README.md) · [Próximo: Instalação ➡️](02-instalacao.md)
+[⬅️ Anterior: Como baixar](00-como-baixar.md) · [Índice](../README.md) · [Próximo: Instalação ➡️](02-instalacao.md)
 
 ---
 
@@ -244,4 +244,4 @@ Antes de seguir, responda mentalmente:
 
 ---
 
-[⬅️ Voltar ao índice](../README.md) · [Próximo: Instalação ➡️](02-instalacao.md)
+[⬅️ Anterior: Como baixar](00-como-baixar.md) · [Índice](../README.md) · [Próximo: Instalação ➡️](02-instalacao.md)
